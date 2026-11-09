@@ -1341,9 +1341,10 @@ fn dlg_preferences(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     if d.params.get("before").is_none() {
         d.params = json!({ "before": preferences_snapshot(app) });
     }
-    ui.label(egui::RichText::new("General").font(theme::bold(13.0)));
+    let language = app.ui.interface_language;
+    ui.label(egui::RichText::new(language.text("General")).font(theme::bold(13.0)));
     let mut dark = app.ui.brightness == theme::Brightness::Dark;
-    if ui.checkbox(&mut dark, "Dark appearance").changed() {
+    if ui.checkbox(&mut dark, language.text("Dark appearance")).changed() {
         let _ = app.run("view.dark", json!({"on": dark}));
     }
     // While the pointer holds the slider its value only waits in the dialog: applying it
@@ -1354,7 +1355,7 @@ fn dlg_preferences(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     let r = ui.add(egui::Slider::new(&mut scale, 0.75..=1.75));
     // No visible label here (the row is laid out to fit); the accessible name only.
     let enabled = r.enabled();
-    r.widget_info(|| egui::WidgetInfo::slider(enabled, f64::from(scale), "Interface size"));
+    r.widget_info(|| egui::WidgetInfo::slider(enabled, f64::from(scale), language.text("Interface size")));
     if r.is_pointer_button_down_on() {
         if r.changed() || pending.is_some() {
             d.fields.insert("uiScale".into(), scale.to_string());
@@ -1367,23 +1368,23 @@ fn dlg_preferences(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
     }
     // Off by default; applies at once, and to files opened from the system from then on.
     let mut tabs = app.ui.tabs;
-    if ui.checkbox(&mut tabs, "Open presentations in tabs").changed() {
+    if ui.checkbox(&mut tabs, language.text("Open presentations in tabs")).changed() {
         let _ = app.run("app.tabs", json!({"on": tabs}));
     }
     // PowerPoint takes the unit from the system's measurement setting; DeckCraft asks here.
     ui.horizontal(|ui| {
-        ui.label("Measurement units:");
+        ui.label(language.text("Measurement units:"));
         let units = &mut app.session.prefs.units;
-        ui.radio_value(units, deckcraft_geom::Unit::Inches, "Inches");
-        ui.radio_value(units, deckcraft_geom::Unit::Centimeters, "Centimeters");
+        ui.radio_value(units, deckcraft_geom::Unit::Inches, language.text("Inches"));
+        ui.radio_value(units, deckcraft_geom::Unit::Centimeters, language.text("Centimeters"));
     });
-    ui.label(egui::RichText::new("Editing").font(theme::bold(13.0)));
-    ui.checkbox(&mut app.session.prefs.smart_guides, "Show smart guides");
-    ui.checkbox(&mut app.session.prefs.snap_to_grid, "Snap objects to grid");
-    ui.checkbox(&mut app.session.prefs.smart_quotes, "Replace straight quotes with smart quotes");
+    ui.label(egui::RichText::new(language.text("Editing")).font(theme::bold(13.0)));
+    ui.checkbox(&mut app.session.prefs.smart_guides, language.text("Show smart guides"));
+    ui.checkbox(&mut app.session.prefs.snap_to_grid, language.text("Snap objects to grid"));
+    ui.checkbox(&mut app.session.prefs.smart_quotes, language.text("Replace straight quotes with smart quotes"));
     ui.horizontal(|ui| {
-        ui.checkbox(&mut app.session.prefs.autocorrect, "AutoCorrect as you type");
-        if ui.button("AutoCorrect Options…").clicked() {
+        ui.checkbox(&mut app.session.prefs.autocorrect, language.text("AutoCorrect as you type"));
+        if ui.button(language.text("AutoCorrect Options…")).clicked() {
             *d = Dialog::new("autocorrect");
         }
     });
@@ -1391,7 +1392,7 @@ fn dlg_preferences(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
         return false;
     }
     ui.horizontal(|ui| {
-        let label = ui.label("Your name (comments):");
+        let label = ui.label(language.text("Your name (comments):"));
         // Name the field for assistive technology; a bare text edit next to a label is an
         // unnamed input in egui 0.37's accessibility tree.
         let _ = ui.add(egui::TextEdit::singleline(&mut app.session.prefs.author)).labelled_by(label.id);

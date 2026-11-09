@@ -75,6 +75,42 @@
       "Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\deckcraft.exe",
       "",
       "[#DeckcraftExe]"
+    ],
+    [
+      "-1",
+      "Software\\Classes\\Applications\\deckcraft.exe\\SupportedTypes",
+      ".ppt",
+      ""
+    ],
+    [
+      "-1",
+      "Software\\Classes\\.ppt\\OpenWithProgids",
+      "DeckCraft.Presentation",
+      ""
+    ],
+    [
+      "-1",
+      "Software\\Classes\\Applications\\deckcraft.exe\\SupportedTypes",
+      ".pot",
+      ""
+    ],
+    [
+      "-1",
+      "Software\\Classes\\.pot\\OpenWithProgids",
+      "DeckCraft.Presentation",
+      ""
+    ],
+    [
+      "-1",
+      "Software\\Classes\\Applications\\deckcraft.exe\\SupportedTypes",
+      ".pps",
+      ""
+    ],
+    [
+      "-1",
+      "Software\\Classes\\.pps\\OpenWithProgids",
+      "DeckCraft.Presentation",
+      ""
     ]
   ],
   "mode": "dualScope"

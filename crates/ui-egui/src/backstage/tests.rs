@@ -323,6 +323,35 @@ fn save_as_and_export_run_the_file_commands() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+#[test]
+fn legacy_ppt_is_selected_and_saved_through_the_file_tab() {
+    let dir = temp_dir("legacy-ppt");
+    let (services, asked) = saving_into(&dir);
+    let mut h = harness(SlideApp::new(Session::with_new(), services));
+    let title = h.state().session.active().unwrap().title();
+    h.state_mut().run("app.backstage", json!({"page": "saveAs"})).unwrap();
+    h.run_steps(3);
+    h.get_by_role_and_label(Role::ComboBox, "Save as type").click();
+    h.run_steps(2);
+    h.get_by_label("PowerPoint 97-2003 (*.ppt)").click();
+    h.run_steps(2);
+    if let Some(out) = std::env::var_os("DECKCRAFT_PPT_QA") {
+        let _gpu = crate::gpu_lock::gpu_lock();
+        std::fs::create_dir_all(&out).unwrap();
+        h.render().unwrap().save(std::path::Path::new(&out).join("save-as-ppt.png")).unwrap();
+    }
+    click_on_page(&h, "Save");
+    h.run_steps(3);
+    let path = dir.join(format!("{title}.ppt"));
+    let bytes = std::fs::read(&path).unwrap();
+    assert!(bytes.starts_with(&[0xd0, 0xcf, 0x11, 0xe0]));
+    assert_eq!(asked.borrow().last().unwrap(), &format!("{title}.ppt"));
+    let p = deckcraft_engine::cmd::file::open_presentation("test.ppt", &bytes).unwrap();
+    assert_eq!(p.slides.len(), 1);
+    assert_eq!(h.state().session.active().unwrap().path.as_deref(), path.to_str());
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
 /// Export › Change File Type › PNG offers "Transparent background" (#784): the PNG it saves
 /// leaves the slide background out. Other types don't show the option.
 #[test]

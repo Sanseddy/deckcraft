@@ -7,8 +7,7 @@ use super::updates_ui;
 use super::{
     AnimPreview, ControlRequest, FileTarget, HashMap, ImeCancelled, ImeComposition, ImeResetPhase, ImeTerminalPending, InputTarget, Mods,
     PendingFile, Perf, Receiver, Session, SlideApp, Target, UI_COMMANDS, UiRequest, Value, backstage, canvas, capture, dialogs, doc_window,
-    eyedropper, json, media, menus, notes, panes, preview, qat, ribbon, selpane, show, sorter, status, tabs, textures, theme, thumbs, toast,
-    uifonts,
+    eyedropper, json, media, menus, notes, panes, preview, qat, ribbon, selpane, show, sorter, status, tabs, textures, theme, thumbs, toast, uifonts,
 };
 
 mod clipboard;
@@ -294,6 +293,7 @@ impl SlideApp {
     /// show mode.
     fn ui_inner(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
+        crate::i18n::set_context(&ctx, self.ui.interface_language);
         self.ime_frame_viewport = Some(ctx.viewport_id());
         self.ime_pending = None;
         if !self.ui_setup(&ctx) {

@@ -1,6 +1,6 @@
 # Where DeckCraft falls short of PowerPoint
 
-> **Last reviewed:** 2026-10-30 · **Last updated:** 2026-11-04 · **Change:** trivial (workflow-breaking regression fixed: Ctrl+C/X/V use the system clipboard again; #1414 to re-test on Windows; previous: trivial, run alternate language and reflection transforms survive saves; reused slide contents scale to the destination, picker thumbnails remain a gap; previous: trivial (locked No Fill and no-outline click-through regression coverage added; No Fill hit-testing follows resolved fill instead of the presence of a style (#1621); scores unchanged)) · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
+> **Last reviewed:** 2026-11-09 · **Last updated:** 2026-11-09 · **Change:** minor (legacy PPT import/export and partial Russian interface; fidelity and translation gaps retained) · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
 
 Every known shortfall, one entry each, ranked by how much it stops someone who presents with
 PowerPoint from switching. This is the work list: pick from the top. Numbers are summarized in
@@ -21,7 +21,7 @@ revision history.
 | 2 | Data loss and crashes on common paths (#60, #40, #59) | Stability | B | 6–12 | this file |
 | 3 | PPTX round trip drops media playback options (#74) | File format | B | 2–4 | [file-format-parity.md](file-format-parity.md) |
 | 4 | SVG pictures don't render (EMF/WMF do) | File format | B | 4–8 | [file-format-parity.md](file-format-parity.md) |
-| 5 | No localization: English only | Localization | B (infra + 5 languages) | 55–90 | [localization-parity.md](localization-parity.md) |
+| 5 | Partial Russian UI; system language and other catalogs missing | Localization | B (infra + 5 languages) | 55–90 (re-measure) | [localization-parity.md](localization-parity.md) |
 | 6 | No printing | Feature | B | 5–8 | [file-format-parity.md](file-format-parity.md) |
 | 7 | Fonts: only Regular, Bold and Italic faces (#69) | Feature | B | 3–5 | [ui-parity.md](ui-parity.md) |
 | 8 | Image paste fails on Windows (#1414); Linux not re-checked | Feature | B | 2–4 | [ui-parity.md](ui-parity.md) |
@@ -117,12 +117,17 @@ Detail in [file-format-parity.md](file-format-parity.md).
 - **Impact:** macro decks can't be opened even to view.
 - **Estimate:** 2–4 h (content types; keep `vbaProject.bin` untouched without running it).
 
-### No legacy `.ppt`/`.pot`/`.pps` import
-- **Evidence:** PowerPoint for Mac still opens and saves the 97–2003 binary formats
-  (`CFBundleDocumentTypes`); DeckCraft doesn't read them.
-- **Impact:** archives of older decks don't open.
-- **Estimate:** 20–35 h (import only, from the public [MS-PPT] spec). Owner decision whether it's
-  worth it.
+### Legacy `.ppt` fidelity is partial
+- **Available:** `.ppt`/`.pot`/`.pps` import from #1137 reads slides, masters, text, shapes,
+  pictures, notes and hidden slides. Content detection also handles renamed binary files.
+  A native binary `.ppt` writer preserves basic text and shapes as editable objects; unsupported
+  drawings use per-slide PNG previews. Imported files ask for a new name to protect the source.
+- **Remaining:** import omits transitions, animations, links, actions, audio/video and PICT;
+  tables become groups, charts/OLE use previews, and WordArt becomes plain text. Export omits
+  interactive behavior and embedded media, and complex slides may lose object-level editability.
+- **Impact:** legacy files can be opened and saved, with compatibility notices; full visual,
+  behavioral and editing fidelity is not established. External PowerPoint validation is pending.
+- **Estimate:** re-measure after corpus and interoperability review; do not count this as full parity.
 
 ### No OpenDocument `.odp`
 - **Evidence:** PowerPoint opens and saves `.odp`.
@@ -332,8 +337,10 @@ Detail in [hardware-parity.md](hardware-parity.md).
 
 Detail in [localization-parity.md](localization-parity.md).
 
-- **English only, no string catalog** (#15, #30; Ukrainian PR #34 open). PowerPoint for Mac ships
-  26 languages. Infrastructure 8–14 h, then 3–16 h per language plus native review. Beta needs the
+- **Partial localization** (#15, #30). Preferences now offers English / Русский with a persisted
+  selection, immediate preview and cancellation. The Russian catalog covers core UI surfaces;
+  remaining labels fall back to English. Following the system language and shared catalogs remain
+  missing. PowerPoint for Mac ships 26 languages. Estimates need re-measurement; beta needs the
   infrastructure and at least Simplified Chinese, Spanish, French, German and Japanese (~30–45 h).
 - **Hangul in the interface needs an installed Korean font** (#101). craft-fonts has no Korean face
   (Noto CJK is excluded by the asset policy), so the web build draws Korean file names, notes and
@@ -368,6 +375,8 @@ Detail in [localization-parity.md](localization-parity.md).
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-09 | minor | Legacy PPT import and binary export added; the gap now records fidelity limitations and pending external validation. |
+| 2026-11-09 | minor | English / Русский selector and partial Russian interface available; system-locale detection and further catalogs remain open; scores unchanged pending re-measurement. |
 | 2026-11-02 | trivial | Run alternate-language metadata now survives native and PPTX saves; UI and proofing gaps remain; scores unchanged |
 | 2026-11-02 | trivial | PPTX reflection geometry is retained through native and PPTX resaves; no rendering parity claim |
 | 2026-11-02 | trivial | Reused slide geometry and content scale to the destination; picker thumbnails remain the reuse gap |

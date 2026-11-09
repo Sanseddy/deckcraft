@@ -1,10 +1,14 @@
 # Localization parity with PowerPoint
 
-> **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-24 · **Change:** minor (opt-in native LXGW WenKai Lite fallback and interface CJK tests; local implementation only, managed validation pending; previous: minor, IME composition underlined in table cells; previous: minor, IME composition and CJK interface text, #101; previous: major, created) · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
+> **Last reviewed:** 2026-11-09 · **Last updated:** 2026-11-09 · **Change:** minor (English / Русский selector, persisted choice and partial Russian interface) · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
 
-DeckCraft's interface is English only today: strings are literals in the UI and engine code, with
-no catalog and no language switch. Requests: #15 (follow the system language), #30 and PR #34
-(Ukrainian, open). Dimension score: **~8% ready** (estimated: English complete, slide-text script
+DeckCraft offers **English / Русский** in Preferences › Interface language. The choice applies
+immediately, is saved in `ui.json`, and is restored on Cancel, Esc or closing Preferences.
+The control channel can read or set it with `app.language` (`en` / `ru`). Russian coverage is
+partial: the core ribbon widgets, tabs, status bar, command search and Preferences are translated;
+other strings fall back to English. The initial catalog and wiring reuse PR #1904. Following the
+system language (#15), shared catalogs and the other languages remain open.
+Dimension score remains **~8% ready** pending re-measurement (estimated: English complete, slide-text script
 support partly there), **55–90 h** to parity plus native-speaker review.
 
 ## How the numbers are measured
@@ -37,14 +41,14 @@ support partly there), **55–90 h** to parity plus native-speaker review.
 | Korean | ko | 0 (0%) | no | system Hangul fonts, in the interface too; IME composition (#101) | no | none | yes | 4–7 |
 | Vietnamese | vi | 0 (0%) | no | stacked diacritics through HarfRust | no | none | **no** (Windows only) | 3–5 |
 
-Other languages shipped: **0** (Ukrainian is in review as PR #34). PowerPoint for Mac ships 16 more
+Other languages available: **Russian (`ru`, partial)**. PowerPoint for Mac ships 16 more
 than the twelve above: Czech, Danish, Greek, Finnish, Hebrew, Hungarian, Italian, Dutch, Norwegian,
 Polish, Russian, Slovak, Swedish, Thai, Turkish and Traditional Chinese.
 
-Per-language hours assume the infrastructure exists: **8–14 h** once for a string catalog (copy a
-sibling app's approach, e.g. EffectCraft's menu and panel catalogs), a language setting that follows
-the system (#15), plural and number formatting, and an `xtask` check that every key has a
-translation. IME composition landed with #101 (slide text, table cells, notes and text fields;
+Per-language hours are the earlier estimates. The English / Русский selector and initial catalog
+now exist; remaining infrastructure includes following the system (#15), shared catalogs,
+number formatting and an `xtask` check for translation coverage. The former **8–14 h** infrastructure
+estimate needs re-measurement. IME composition landed with #101 (slide text, table cells, notes and text fields;
 one undo step per composition, underlined in place); the hours that included it are kept until
 the next re-measure.
 
@@ -60,6 +64,7 @@ of every text in the file and the default for new text (`format.languageAll`).
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-09 | minor | Preferences adds English / Русский with immediate preview, persistence and rollback on dismissal; partial Russian UI catalog and `app.language` command; dimension score awaits re-measurement. |
 | 2026-10-24 | minor | Local 0.37 candidate adds an opt-in native LXGW WenKai Lite glyph fallback and CJK interface-test coverage. This records local implementation only: managed tests, formatting, clippy, wasm-size and native GUI qualification remain pending. Browser font budget and uniform Chinese typography are unchanged. |
 | 2026-10-21 | minor | Review › Language can set the proofing language of the whole presentation |
 | 2026-10-14 | minor | IME composition in a table cell is underlined in place; the candidate window sits on that cell's caret |

@@ -33,10 +33,10 @@ pub fn specs() -> Vec<CommandSpec> {
             adopt
         ),
         cmd!(noundo "file.openBytes", "Open Data", [], None, "{name, data: base64}", always, open_bytes),
-        cmd!(noundo "file.save", "Save", ["File"], Some("Cmd+S"), "{path?, format?: deckcraft|pptx}", has_doc, save),
+        cmd!(noundo "file.save", "Save", ["File"], Some("Cmd+S"), "{path?, format?: deckcraft|pptx|ppt}", has_doc, save),
         cmd!(noundo "file.saveAs", "Save As…", ["File"], Some("Cmd+Shift+S"), "{path, format?}", has_doc, save_as),
         cmd!(noundo "file.saveTemplate", "Save as Template…", ["File"], None, "{path}", has_doc, save_as),
-        cmd!(query "file.saveBytes", "Save to Data", [], None, "{format?: deckcraft|pptx} → {data: base64}", has_doc, save_bytes_cmd),
+        cmd!(query "file.saveBytes", "Save to Data", [], None, "{format?: deckcraft|pptx|ppt} → {data: base64, warning?}", has_doc, save_bytes_cmd),
         cmd!(noundo "file.export", "Export…", ["File"], None, "{path, format?: png|jpeg|pptx|deckcraft|outline|rtf|pdf|gif (else by path), slide?: index, all?: bool, scale?: px per pt, layout?: slides|notes|handouts (pdf), perPage?: 1|2|3|4|6|9, paper?: letter|a4|legal|a3 (pdf), orientation?: portrait|landscape (pdf), dpi?, slides?: [index]|range (\"1-3,5\"), includeHidden?, textLayer?, frame?, transparentBackground?: bool (png: leave the slide background out), width?: px 16-3840|small|medium|large|extraLarge (gif), secondsPerSlide?: 0.1-600 (gif; 5), loop?: bool (gif; true: forever)} → {path, bytes} or {files} (png, jpeg); gif adds frames, width, height, secondsPerSlide", has_doc, export),
         cmd!(
             query "file.info",
@@ -148,6 +148,8 @@ pub struct Damage {
     pub media: Vec<String>,
     /// Slides a `.pptx` lists but that couldn't be read, so they are not in the presentation.
     pub slides: Vec<String>,
+    /// Compatibility limitations, distinct from missing or damaged content.
+    pub warnings: Vec<String>,
 }
 
 impl Damage {
@@ -160,20 +162,32 @@ impl Damage {
 pub fn open_checked(name: &str, bytes: &[u8]) -> Result<(Presentation, Damage)> {
     if deckcraft_format::sniff(bytes) {
         let (p, media) = deckcraft_format::load_checked(bytes).map_err(|e| EngineError::Other(e.to_string()))?;
-        return Ok((p, Damage { media, slides: vec![] }));
+        return Ok((p, Damage { media, ..Default::default() }));
     }
-    open_other(name, bytes).map(|(p, slides)| (p, Damage { media: vec![], slides }))
+    open_other(name, bytes).map(|(p, slides, legacy)| {
+        (p, Damage { slides, warnings: if legacy { vec![PPT_IMPORT_WARNING.into()] } else { vec![] }, ..Default::default() })
+    })
 }
 
-fn open_other(name: &str, bytes: &[u8]) -> Result<(Presentation, Vec<String>)> {
+fn open_other(name: &str, bytes: &[u8]) -> Result<(Presentation, Vec<String>, bool)> {
     if deckcraft_pptx::sniff(bytes) {
         let (mut p, lost_slides) = deckcraft_pptx::import_checked(bytes).map_err(|e| EngineError::Other(e.to_string()))?;
         deckcraft_format::repair(&mut p);
         probe_clips(&mut p);
-        return Ok((p, lost_slides));
+        return Ok((p, lost_slides, false));
     }
     if deckcraft_pptx::is_encrypted(bytes) {
         return Err(EngineError::Other(format!("{name} is password-protected. DeckCraft can't open password-protected presentations yet.")));
+    }
+    if deckcraft_ppt::sniff(bytes) {
+        let mut p = deckcraft_ppt::import(bytes).map_err(|e| match e {
+            deckcraft_ppt::PptError::Encrypted => {
+                EngineError::Other(format!("{name} is password-protected. DeckCraft can't open password-protected presentations yet."))
+            }
+            other => EngineError::Other(format!("{name}: {other}")),
+        })?;
+        deckcraft_format::repair(&mut p);
+        return Ok((p, vec![], true));
     }
     let lower = name.to_ascii_lowercase();
     let rtf = deckcraft_format::rtf::sniff_rtf(bytes);
@@ -189,7 +203,7 @@ fn open_other(name: &str, bytes: &[u8]) -> Result<(Presentation, Vec<String>)> {
         if p.slides.is_empty() {
             p = defaults::new_presentation(None);
         }
-        return Ok((p, vec![]));
+        return Ok((p, vec![], false));
     }
     Err(EngineError::Other(format!("{name}: not a presentation DeckCraft can read")))
 }
@@ -286,6 +300,7 @@ fn adopt_loaded(s: &mut Session, f: LoadedFile) -> Result<Value> {
     Ok(json!({
         "document": i, "slides": st.doc.slides.len(), "missingFonts": st.missing_fonts,
         "damagedMedia": damaged.media, "lostSlides": damaged.slides,
+        "warnings": damaged.warnings,
     }))
 }
 
@@ -320,11 +335,16 @@ fn open_bytes(s: &mut Session, p: &Value) -> Result<Value> {
     let (doc, damaged) = open_checked(name, &data)?;
     let i = add_opened(s, name, None, doc);
     report_damage(s, &damaged)?;
-    Ok(json!({"document": i, "missingFonts": s.doc()?.missing_fonts, "damagedMedia": damaged.media, "lostSlides": damaged.slides}))
+    Ok(
+        json!({"document": i, "missingFonts": s.doc()?.missing_fonts, "damagedMedia": damaged.media, "lostSlides": damaged.slides, "warnings": damaged.warnings}),
+    )
 }
 
 /// Tell the user which pictures, media and slides a damaged file lost, and mark the copy repaired.
 fn report_damage(s: &mut Session, damaged: &Damage) -> Result<()> {
+    for warning in &damaged.warnings {
+        s.ui_requests.push(crate::UiRequest::Message { text: warning.clone() });
+    }
     if damaged.is_empty() {
         return Ok(());
     }
@@ -356,6 +376,7 @@ fn report_damage(s: &mut Session, damaged: &Damage) -> Result<()> {
 /// Encode the presentation in `format` (`deckcraft`, `pptx`, `potx`, `ppsx`, `outline`, `pdf`, `gif`).
 pub fn save_bytes(doc: &Presentation, format: &str) -> Result<Vec<u8>> {
     match format {
+        "ppt" => ppt_bytes(doc),
         f @ ("pptx" | "potx" | "ppsx") => deckcraft_pptx::export_as(doc, f).map_err(|e| EngineError::Other(e.to_string())),
         "outline" | "txt" => Ok(deckcraft_format::slides_to_outline(doc).into_bytes()),
         "rtf" => Ok(deckcraft_format::rtf::slides_to_rtf(doc).into_bytes()),
@@ -365,6 +386,41 @@ pub fn save_bytes(doc: &Presentation, format: &str) -> Result<Vec<u8>> {
         _ => deckcraft_format::save(doc).map_err(|e| EngineError::Other(e.to_string())),
     }
 }
+
+/// Native binary PPT output. Unsupported drawings become explicit per-slide previews;
+/// the document itself is never modified, and interactive behavior is not exported.
+pub fn ppt_bytes(doc: &Presentation) -> Result<Vec<u8>> {
+    if doc.slides.len() > 1000 || [doc.slide_size.width, doc.slide_size.height].iter().any(|v| !v.is_finite() || !(1.0..=4032.0).contains(v)) {
+        return Err(EngineError::Other(
+            "PPT export needs at most 1000 slides with sides between 1 and 4032 points; use PPTX for larger decks".into(),
+        ));
+    }
+    let mut previews = Vec::new();
+    let mut budget = 128usize << 20;
+    for (index, slide) in doc.slides.iter().enumerate() {
+        let preview = if deckcraft_ppt::needs_preview(doc, slide) {
+            let scale = (2048.0 / doc.slide_size.width.max(doc.slide_size.height)).min(2.0);
+            let panics = deckcraft_render::panics_caught();
+            let image = deckcraft_render::render_slide(doc, index, &deckcraft_render::RenderOpts { scale, ..Default::default() });
+            if deckcraft_render::panics_caught() != panics || image.width == 0 || image.height == 0 {
+                return Err(EngineError::Other(format!("Slide {} could not be rendered for PPT export", index + 1)));
+            }
+            let bytes = image.to_png();
+            if bytes.is_empty() || bytes.len() > budget {
+                return Err(EngineError::Other("PPT previews exceed the 128 MiB export limit; use PPTX".into()));
+            }
+            budget -= bytes.len();
+            Some(bytes)
+        } else {
+            None
+        };
+        previews.push(preview);
+    }
+    deckcraft_ppt::export(doc, &previews).map_err(|e| EngineError::Other(e.to_string()))
+}
+
+pub const PPT_WARNING: &str = "PowerPoint 97-2003 compatibility: basic text and shapes remain editable. Slides with unsupported drawings are exported as pictures. Animations, transitions, links and embedded media are not preserved. Keep a PPTX or DeckCraft copy for full editing.";
+pub const PPT_IMPORT_WARNING: &str = "Legacy PPT import: slides, text, shapes, pictures and notes are supported. Animations, transitions, links, audio/video and PICT pictures are not imported. Tables become grouped shapes, charts and OLE objects use their previews, and WordArt becomes plain text. Save under a new name to retain the original.";
 
 /// Paper sizes for notes and handouts, for the UI's Print page.
 pub use deckcraft_pdf::{PAPERS, paper_size};
@@ -446,7 +502,7 @@ pub fn pdf_bytes(doc: &Presentation, p: &Value) -> Result<Vec<u8>> {
 }
 
 /// The output extensions [`format_for_path`] maps to a writer of that format.
-pub const WRITABLE_EXTENSIONS: &[&str] = &["deckcraft", "pptx", "potx", "ppsx", "pdf", "png", "jpg", "jpeg", "gif", "txt", "md", "rtf"];
+pub const WRITABLE_EXTENSIONS: &[&str] = &["deckcraft", "ppt", "pptx", "potx", "ppsx", "pdf", "png", "jpg", "jpeg", "gif", "txt", "md", "rtf"];
 
 /// The format a file named `path` is written in, or `None` when its extension names no format
 /// DeckCraft writes (`.odp`, `.svg`, no extension …): [`format_for_path`] would save
@@ -463,7 +519,9 @@ pub fn gif_bytes(doc: &Presentation, p: &Value) -> Result<Vec<u8>> {
 
 pub fn format_for_path(path: &str) -> &'static str {
     let l = path.to_ascii_lowercase();
-    if l.ends_with(".pptx") {
+    if l.ends_with(".ppt") {
+        "ppt"
+    } else if l.ends_with(".pptx") {
         "pptx"
     } else if l.ends_with(".potx") {
         "potx"
@@ -517,7 +575,14 @@ fn save(s: &mut Session, p: &Value) -> Result<Value> {
     let bytes = save_bytes(&s.doc()?.doc, format)?;
     write_file(&path, &bytes)?;
     mark_saved(s, Some(path.clone()))?;
-    Ok(json!({"path": path, "bytes": bytes.len()}))
+    if format == "ppt" {
+        s.ui_requests.push(crate::UiRequest::Message { text: PPT_WARNING.into() });
+    }
+    let mut out = json!({"path": path, "bytes": bytes.len()});
+    if format == "ppt" {
+        out["warning"] = json!(PPT_WARNING);
+    }
+    Ok(out)
 }
 
 fn save_as(s: &mut Session, p: &Value) -> Result<Value> {
@@ -531,7 +596,11 @@ fn save_as(s: &mut Session, p: &Value) -> Result<Value> {
 fn save_bytes_cmd(s: &mut Session, p: &Value) -> Result<Value> {
     let format = str_param(p, "format").unwrap_or("deckcraft");
     let bytes = save_bytes(&s.doc()?.doc, format)?;
-    Ok(json!({"data": base64_encode(&bytes), "bytes": bytes.len()}))
+    let mut out = json!({"data": base64_encode(&bytes), "bytes": bytes.len()});
+    if format == "ppt" {
+        out["warning"] = json!(PPT_WARNING);
+    }
+    Ok(out)
 }
 
 /// `scale` for rendering `doc`'s slides to an image: within 0.01–16, and small enough that the
@@ -664,10 +733,15 @@ fn export(s: &mut Session, p: &Value) -> Result<Value> {
                 "secondsPerSlide": f64::from(out.delay_cs) / 100.0,
             }))
         }
-        "pptx" | "potx" | "ppsx" | "deckcraft" | "outline" | "txt" | "rtf" => {
+        "ppt" | "pptx" | "potx" | "ppsx" | "deckcraft" | "outline" | "txt" | "rtf" => {
             let bytes = save_bytes(&st.doc, &format)?;
             write_file(&path, &bytes)?;
-            Ok(json!({"path": path, "bytes": bytes.len()}))
+            let mut out = json!({"path": path, "bytes": bytes.len()});
+            if format == "ppt" {
+                out["warning"] = json!(PPT_WARNING);
+                s.ui_requests.push(crate::UiRequest::Message { text: PPT_WARNING.into() });
+            }
+            Ok(out)
         }
         other => Err(bad("file.export", format!("unknown format `{other}`"))),
     }
@@ -839,7 +913,13 @@ mod window_move_tests {
         s.execute("file.new", &json!({})).unwrap();
         s.execute("file.new", &json!({})).unwrap();
         let before = uids(&s);
-        for p in [json!({"from": 2, "to": 0}), json!({"from": 0, "to": 99}), json!({"from": -1, "to": 0}), json!({"from": 0}), json!({"from": "a", "to": 1})] {
+        for p in [
+            json!({"from": 2, "to": 0}),
+            json!({"from": 0, "to": 99}),
+            json!({"from": -1, "to": 0}),
+            json!({"from": 0}),
+            json!({"from": "a", "to": 1}),
+        ] {
             assert!(s.execute("window.move", &p).is_err(), "{p}");
         }
         assert_eq!(uids(&s), before);

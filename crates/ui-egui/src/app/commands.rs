@@ -246,6 +246,16 @@ impl SlideApp {
                 return Err("updates are handled by the browser: reload the page".into());
             }
             "app.palette" => self.palette = Some((String::new(), 0)),
+            "app.language" => {
+                if let Some(value) = p.get("language") {
+                    self.ui.interface_language = match value.as_str() {
+                        Some("en") => crate::i18n::Language::English,
+                        Some("ru") => crate::i18n::Language::Russian,
+                        _ => return Err("`language` must be en or ru".into()),
+                    };
+                }
+                return Ok(json!({ "language": self.ui.interface_language }));
+            }
             "app.preferences" => self.dialog = Some(dialogs::Dialog::new("preferences")),
             "app.openDialog" => self.pick_and_open(),
             "app.insertPictureDialog" => self.pick_and_insert("picture", "insert.picture"),

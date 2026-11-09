@@ -2,8 +2,13 @@ use super::files::task;
 use super::{Backstage, Icon, Outcome, Page, RichText, Sense, SlideApp, Tokens, Ui, Value, dim, heading, json, theme, vec2};
 
 /// Save As and Change File Type: (id for [`SlideApp::export_as`], label, detail).
-pub const SAVE_TYPES: [(&str, &str, &str); 7] = [
+pub const SAVE_TYPES: [(&str, &str, &str); 8] = [
     ("pptx", "PowerPoint Presentation (*.pptx)", "Opens in PowerPoint and other presentation apps"),
+    (
+        "ppt",
+        "PowerPoint 97-2003 (*.ppt)",
+        "Basic text and shapes stay editable; unsupported drawings become pictures. Animations and links are omitted.",
+    ),
     ("deckcraft", "DeckCraft Presentation (*.deckcraft)", "DeckCraft's own format: everything is kept"),
     ("pdf", "PDF (*.pdf)", "A fixed copy that keeps its layout on any device"),
     ("outline", "Outline (*.txt)", "The slide titles and bullet text as plain text"),
@@ -181,7 +186,7 @@ pub(super) fn save_as(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: 
             .clicked()
         {
             let fmt = bs.file_type;
-            let done = if matches!(fmt, "pptx" | "deckcraft") {
+            let done = if matches!(fmt, "ppt" | "pptx" | "deckcraft") {
                 // A save bumps the revision, also one under the same name that leaves the path
                 // and the dirty flag as they were; a cancelled dialog or a failed save doesn't.
                 let snapshot = |app: &SlideApp| app.session.active().map(|d| (d.path.clone(), d.is_dirty(), d.revision));

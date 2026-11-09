@@ -626,6 +626,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d43a04d8753f35258c91f8ec639f792891f748a1edbd759cf1dcea3382ad83c"
 
 [[package]]
+name = "cfb"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fef29b910ef2b9dbecc60168d1568d643c633b0518af970c17e83bd5f6e2c94f"
+dependencies = [
+ "fnv",
+ "uuid",
+ "web-time",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1103,6 +1114,7 @@ dependencies = [
  "deckcraft-media",
  "deckcraft-model",
  "deckcraft-pdf",
+ "deckcraft-ppt",
  "deckcraft-pptx",
  "deckcraft-render",
  "deckcraft-text",
@@ -1252,6 +1264,22 @@ dependencies = [
  "serde",
  "thiserror 2.0.21",
  "wasm-bindgen-test",
+]
+
+[[package]]
+name = "deckcraft-ppt"
+version = "0.17.0"
+dependencies = [
+ "cfb",
+ "deckcraft-color",
+ "deckcraft-engine",
+ "deckcraft-geom",
+ "deckcraft-model",
+ "flate2",
+ "image",
+ "log",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -1869,6 +1897,12 @@ dependencies = [
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
 ]
+
+[[package]]
+name = "fnv"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "foldhash"

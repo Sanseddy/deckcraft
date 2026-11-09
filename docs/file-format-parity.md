@@ -1,6 +1,6 @@
 # File-format parity with PowerPoint
 
-> **Last reviewed:** 2026-11-02 · **Last updated:** 2026-11-03 · **Change:** minor (cell anchorCtr, vertOverflow/horzOverflow, compatLnSpc, normalizeH, thaiDist, table rtl, run altLang and reflection transforms round-trip; Reuse Slides brings referenced custom table styles; previous: minor (native chart payloads stored in bounded ZIP members; previous: major, community PR wave 2026-10-14: seven owned PPTX corpus files, embedded fonts, EMF/WMF clip regions, threaded comments (#70), chart trendlines and workbooks (#335), SmartArt written as a diagram, tags and custom XML kept, picture export DPI; duplicated rows and headers folded; previous: trivial, lines in scaled groups, #233)) · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
+> **Last reviewed:** 2026-11-09 · **Last updated:** 2026-11-09 · **Change:** minor (partial legacy PPT import and binary export, compatibility notices and synthetic round-trip tests; external PowerPoint validation pending) · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
 
 Every format PowerPoint reads or writes, DeckCraft's support, fidelity and how it is tested.
 Gaps are itemized in [gaps.md](gaps.md#file-formats). Dimension score: **~58% ready**
@@ -20,7 +20,7 @@ PowerPoint opens and saves; Viewer = opens only).
 | `.potx` template | Editor | yes (as a presentation) | yes, with the template content type | `file.saveTemplate` is Save As under another name | `crates/pptx/tests/it/roundtrip.rs` |
 | `.ppsx` slide show | Editor | yes (as a presentation) | yes, with the slide-show content type | Handed over by the system (command line, file association) it starts the slide show, as in PowerPoint; File › Open opens it for editing. The macOS Finder event arrives with #432 | `crates/ui-egui/src/opening.rs` tests |
 | `.pptm` / `.potm` / `.ppsm` macro-enabled | Editor | no | no | Should open and keep `vbaProject.bin` without running it | none |
-| `.ppt` / `.pot` / `.pps` 97–2003 binary | Editor | no | no | Owner decision; import only would be enough | none |
+| `.ppt` / `.pot` / `.pps` 97–2003 binary | Editor | yes, partial | `.ppt`, partial | Import reuses #1137: text, shapes, pictures, masters, notes and hidden slides. Native binary export keeps basic text/shapes editable; unsupported drawings become per-slide PNG previews. Animations, transitions, links and embedded media are omitted; retain a native/PPTX copy. Imported legacy files ask for a new save name. | `crates/ppt/src/tests.rs`, `write_tests.rs`; UI Save As test; external PowerPoint validation pending |
 | `.odp` OpenDocument | Editor | no | no | | none |
 | `.thmx` Office theme | Viewer | theme only (Design › Browse for Themes…) | no | Browse for Themes takes a `.thmx`'s colours, fonts and effects; a `.pptx` or `.potx` brings its slide master and layouts as well, and slides move to the matching layouts (#807). A `.thmx`'s own master and layouts aren't read yet | `crates/pptx/src/lib.rs` (`import_theme_tests`), `crates/engine/src/cmd/design/browse_theme_tests.rs` |
 | `.deckcraft` native (zip + JSON) | n/a | yes (also `.slidecraft`) | yes | Lossless for the DeckCraft model, forward compatible; optional table RTL direction survives two saves | `crates/format` tests |
@@ -119,6 +119,7 @@ the round trip even though DeckCraft doesn't model it.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-09 | minor | Added partial binary PPT import/export, content detection, compatibility notices, legacy file filters and synthetic round-trip tests; advanced content limitations remain explicit. |
 | 2026-11-02 | minor | Optional table RTL direction is read and written as `a:tblPr/@rtl`; native and two PPTX saves preserve true, false and absent values with distinguishable column text |
 | 2026-11-02 | minor | Text runs preserve alternate-language metadata in native and PPTX round trips |
 | 2026-11-03 | trivial | Reuse Slides transfers referenced custom table styles from native and PPTX sources; grouped tables, undo, native save/reopen and style-id conflicts are covered |

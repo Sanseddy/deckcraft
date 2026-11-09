@@ -2,7 +2,7 @@
 
 **Stage: alpha** · next: beta, ~20 points and ~120–210 h away
 
-> **Last reviewed:** 2026-11-09 · **Last updated:** 2026-11-09 · **Change:** minor (Preferences › Open presentations in tabs, off by default; parity scores unchanged) · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
+> **Last reviewed:** 2026-11-09 · **Last updated:** 2026-11-09 · **Change:** minor (legacy PPT import/export, English / Русский interface selector and presentation tabs; compatibility limits remain explicit) · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
 > **Last reviewed:** 2026-11-04 · **Last updated:** 2026-11-04 · **Change:** trivial (Ogg Opus recovery includes trailing packets without granules in its reported duration; parity scores unchanged) · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
 > **Last reviewed:** 2026-11-02 · **Last updated:** 2026-11-03 · **Change:** trivial (progress log: web `?host=parent` bridge opens and saves through a same-origin framing page; scores unchanged) · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
 
@@ -108,12 +108,13 @@ EMF/SVG pictures, the data-loss and startup-crash bugs (#60, #40, #59) and the b
 
 ## Languages
 
-English only today; no string catalog yet (Ukrainian is in review as PR #34). Detail:
+English plus partial Russian, selected in Preferences › Interface language. Detail:
 [docs/localization-parity.md](docs/localization-parity.md).
 
 | Language | Code | UI strings | Status | Hours to full |
 |---|---|---:|---|---|
 | English | en | 100% | full | 0 |
+| Russian | ru | partial catalog | partial; English fallback | needs review |
 | Simplified Chinese | zh-Hans | 0% | none | 6–10 |
 | Spanish | es | 0% | none | 3–5 |
 | Hindi | hi | 0% | none | 4–7 |
@@ -126,8 +127,8 @@ English only today; no string catalog yet (Ukrainian is in review as PR #34). De
 | Korean | ko | 0% | none | 4–7 |
 | Vietnamese | vi | 0% | none | 3–5 |
 
-Plus 8–14 h once for the catalog infrastructure. Other languages shipped: none. PowerPoint for Mac
-ships 26.
+Following the system language, shared catalogs and further languages remain open; estimates need
+re-measurement after the English / Русский selector and initial catalog. PowerPoint for Mac ships 26.
 
 ## Upcoming
 
@@ -155,6 +156,8 @@ app's JSON control channel (`deckcraft --control PORT`).
 
 | Date | What landed |
 |---|---|
+| 2026-11-09 | Partial legacy PowerPoint `.ppt` support: import of `.ppt`/`.pot`/`.pps`, genuine binary `.ppt` export, editable basic objects, notes and hidden slides; unsupported drawings use slide previews, with compatibility notices. The importer reuses #1137. |
+| 2026-11-09 | Preferences › Interface language: English / Русский applies immediately, persists across launches and rolls back on Cancel, Esc or close. Partial Russian UI coverage reuses PR #1904; `app.language` exposes the choice to automation; document text remains unchanged. |
 | 2026-11-09 | Preferences › Open presentations in tabs (off by default): a tab row under the title bar switches, closes (asking about unsaved changes), reorders by dragging and scrolls or lists when full; Ctrl+Tab and Ctrl+Shift+Tab cycle; each presentation keeps its own zoom, view and scroll; opening an open file switches to its tab; a file opened from Explorer or another file manager goes to the running window. Off, the window and launches behave as before |
 | 2026-11-04 | Ogg Opus recovery keeps trailing packets without granules in the total duration, matching their recovered positions; valid end trimming stays covered |
 | 2026-11-03 | Web: the `?host=parent` bridge (as in GridCraft, WordCraft and PdfCraft) lets a same-origin page that frames DeckCraft send a presentation and store its saves; Save writes an opened .pptx back as .pptx under its own name, as on the desktop |
@@ -342,7 +345,9 @@ app's JSON control channel (`deckcraft --control PORT`).
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-09 | minor | Legacy PPT import/export added and its checklist row moved M → P; advanced compatibility remains open. |
 | 2026-11-09 | minor | Progress log: presentation tabs (Preferences, off by default); parity scores unchanged |
+| 2026-11-09 | minor | English / Русский interface selection and partial catalog; language section and progress log updated; parity scores unchanged pending re-measurement. |
 | 2026-11-04 | trivial | Ogg Opus recovery duration includes its recovered tail; parity scores unchanged |
 | 2026-11-02 | trivial | Progress log: run alternate-language metadata round-trips through native and PPTX formats; product parity scores unchanged |
 | 2026-11-03 | trivial | Reuse Slides brings referenced custom table styles along; scores unchanged |

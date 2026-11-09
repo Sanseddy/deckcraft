@@ -74,6 +74,21 @@ mod tests {
     }
 
     #[test]
+    fn interface_language_survives_disk_save_and_old_settings_keep_their_values() {
+        use crate::i18n::Language;
+        let d = dir("language");
+        let ui = UiState { interface_language: Language::Russian, zoom: Some(1.5), ..Default::default() };
+        save(&d, &ui, &Prefs::default());
+        assert_eq!(load(&d).0.unwrap().interface_language, Language::Russian);
+        for bytes in [r#"{"zoom":1.5}"#, r#"{"zoom":1.5,"interfaceLanguage":"future"}"#] {
+            std::fs::write(d.join(UI_FILE), bytes).unwrap();
+            let loaded = load(&d).0.unwrap();
+            assert_eq!(loaded.interface_language, Language::English);
+            assert_eq!(loaded.zoom, Some(1.5));
+        }
+    }
+
+    #[test]
     fn damaged_settings_files_give_the_defaults() {
         let d = dir("damaged");
         let cases: [&[u8]; 6] = [b"", b"{", b"\xFF\xFE garbage", b"[1, 2, 3]", b"{\"zoom\": \"big\"}", b"null"];

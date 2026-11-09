@@ -39,6 +39,80 @@ fn dark(app: &SlideApp) -> bool {
     app.ui.brightness == Brightness::Dark
 }
 
+fn choose_interface_language(h: &mut Harness<'_, SlideApp>, label: &str, option: &str) {
+    h.get_by_role_and_label(egui::accesskit::Role::ComboBox, label).click();
+    h.run_steps(2);
+    h.get_by_label(option).click();
+    h.run_steps(3);
+}
+
+/// Switching changes the live UI, keeps document text intact and persists on Done.
+#[test]
+fn interface_language_switches_both_ways_and_done_keeps_it() {
+    use crate::i18n::Language;
+    let mut h = harness();
+    let document = serde_json::to_value(&h.state().session.active().unwrap().doc).unwrap();
+    open_options(&mut h);
+    choose_interface_language(&mut h, "Interface language", "Русский");
+    assert_eq!(h.state().ui.interface_language, Language::Russian);
+    h.get_by_label("Тёмное оформление");
+    h.get_by_label("Главная");
+    h.get_by_role_and_label(egui::accesskit::Role::Button, "Создать слайд");
+    h.get_by_role_and_label(egui::accesskit::Role::Button, "Параметры: Создать слайд");
+    assert_eq!(serde_json::to_value(&h.state().session.active().unwrap().doc).unwrap(), document);
+    if let Some(dir) = std::env::var_os("DECKCRAFT_LANGUAGE_SHOTS") {
+        let _gpu = crate::gpu_lock::gpu_lock();
+        let dir = std::path::PathBuf::from(dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        h.render().unwrap().save(dir.join("russian-preferences.png")).unwrap();
+    }
+    h.get_by_label("Готово").click();
+    h.run_steps(3);
+    assert!(h.state().dialog.is_none());
+    assert_eq!(h.state().ui.interface_language, Language::Russian);
+    open_options(&mut h);
+    choose_interface_language(&mut h, "Язык интерфейса", "English");
+    assert_eq!(h.state().ui.interface_language, Language::English);
+    h.get_by_label("Dark appearance");
+    if let Some(dir) = std::env::var_os("DECKCRAFT_LANGUAGE_SHOTS") {
+        let _gpu = crate::gpu_lock::gpu_lock();
+        h.render().unwrap().save(std::path::PathBuf::from(dir).join("english-preferences.png")).unwrap();
+    }
+    h.get_by_label("Done").click();
+    h.run_steps(2);
+    assert_eq!(h.state().ui.interface_language, Language::English);
+}
+
+/// All three dismissal routes roll a previewed language back to the saved one.
+#[test]
+fn interface_language_cancel_escape_and_close_restore_it() {
+    for dismiss in ["Cancel", "Escape", "Close"] {
+        let mut h = harness();
+        open_options(&mut h);
+        choose_interface_language(&mut h, "Interface language", "Русский");
+        match dismiss {
+            "Cancel" => h.get_by_label("Отмена").click(),
+            "Escape" => h.key_press(egui::Key::Escape),
+            _ => h.get_all_by_label("Close window").next().unwrap().click(),
+        }
+        h.run_steps(3);
+        assert!(h.state().dialog.is_none(), "{dismiss}");
+        assert_eq!(h.state().ui.interface_language, crate::i18n::Language::English, "{dismiss}");
+        h.get_by_label("Home");
+    }
+}
+
+#[test]
+fn interface_language_command_rejects_unknown_values_without_changing_language() {
+    let mut app = SlideApp::new(Session::with_new(), Services::default());
+    assert_eq!(app.run("app.language", json!({})).unwrap(), json!({"language": "en"}));
+    assert_eq!(app.run("app.language", json!({"language": "ru"})).unwrap(), json!({"language": "ru"}));
+    for invalid in [json!("xx"), json!(null), json!(23), json!(["en"])] {
+        assert!(app.run("app.language", json!({"language": invalid})).is_err());
+        assert_eq!(app.run("app.language", json!({})).unwrap(), json!({"language": "ru"}));
+    }
+}
+
 /// A checkbox applies as it is toggled and Cancel puts the old value back.
 #[test]
 fn options_cancel_undoes_the_changes() {
