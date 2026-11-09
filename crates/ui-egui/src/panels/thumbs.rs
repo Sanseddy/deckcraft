@@ -98,7 +98,14 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
                 master_list(app, ui);
                 return;
             }
-            let out = egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            let mut area = egui::ScrollArea::vertical().auto_shrink([false, false]);
+            // With tabs each presentation keeps its own place in the list.
+            if app.ui.tabs
+                && let Some(uid) = app.session.active().map(|d| d.uid)
+            {
+                area = area.id_salt(("thumbs", uid));
+            }
+            let out = area.show(ui, |ui| {
                 ui.add_space(8.0);
                 list(app, ui);
                 ui.add_space(20.0);

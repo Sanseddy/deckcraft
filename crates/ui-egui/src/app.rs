@@ -7,7 +7,8 @@ use super::updates_ui;
 use super::{
     AnimPreview, ControlRequest, FileTarget, HashMap, ImeCancelled, ImeComposition, ImeResetPhase, ImeTerminalPending, InputTarget, Mods,
     PendingFile, Perf, Receiver, Session, SlideApp, Target, UI_COMMANDS, UiRequest, Value, backstage, canvas, capture, dialogs, doc_window,
-    eyedropper, json, media, menus, notes, panes, preview, qat, ribbon, selpane, show, sorter, status, textures, theme, thumbs, toast, uifonts,
+    eyedropper, json, media, menus, notes, panes, preview, qat, ribbon, selpane, show, sorter, status, tabs, textures, theme, thumbs, toast,
+    uifonts,
 };
 
 mod clipboard;
@@ -100,6 +101,7 @@ impl SlideApp {
             align_to: None,
             doc_window: None,
             sorter: sorter::State::default(),
+            doc_tabs: Default::default(),
             slides_focused: false,
             v_seen: false,
             recent_checked: HashMap::new(),
@@ -234,6 +236,8 @@ impl SlideApp {
             // Inbox results are host file bytes and do not need fonts or a painted frame. A
             // window that starts hidden must still apply a file picked before its first UI pass.
             self.drain_inbox();
+            // Files another launch handed to this window (tabs on).
+            tabs::drain_handoff(self, ctx);
         }
         self.drain_screenshots();
         // `raw_input_hook` ran before this logic pass. This is normally a no-op now that
@@ -313,10 +317,14 @@ impl SlideApp {
             self.ui_end(&ctx);
             return;
         }
+        tabs::sync(self);
         self.sync_backstage();
         self.keyboard(&ctx);
+        tabs::sync(self);
         self.sync_backstage();
         ribbon::title_bar(self, ui);
+        tabs::row(self, ui);
+        self.sync_backstage();
         if self.backstage.is_none() && self.session.active().is_some() {
             ribbon::show(self, ui);
             status::status_bar(self, ui);
@@ -369,6 +377,7 @@ impl SlideApp {
         }
         self.drain_requests();
         doc_window::show(self, &ctx);
+        tabs::remember(self);
         self.perf.frame_ms = now_ms() - t0;
         self.ui_end(&ctx);
     }

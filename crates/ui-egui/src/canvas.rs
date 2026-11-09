@@ -162,8 +162,8 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
         empty_deck_prompt(app, ui, avail, &t);
         return;
     }
-    // Scroll when zoomed beyond the window.
-    let scroll_id = ui.scope_id().with("canvas_scroll");
+    // Scroll when zoomed beyond the window. With tabs each presentation keeps its own position.
+    let scroll_id = if app.ui.tabs { ui.scope_id().with(("canvas_scroll", doc_uid)) } else { ui.scope_id().with("canvas_scroll") };
     let last_id = scroll_id.with("last");
     let mut offset: egui::Vec2 = ui.data_mut(|d| d.get_temp(scroll_id).unwrap_or_default());
     let last: Option<(Rect, f32)> = ui.data_mut(|d| d.get_temp(last_id));

@@ -619,6 +619,24 @@ impl Session {
         }
         self.forget_vertex_kind_unless(was);
     }
+    /// Move the document at `from` to position `to` (the order of the window's tabs). The active
+    /// document stays active wherever it lands. An index past the open documents changes nothing
+    /// and returns false.
+    pub fn move_document(&mut self, from: usize, to: usize) -> bool {
+        let n = self.docs.len();
+        if from >= n || to >= n {
+            return false;
+        }
+        if from != to {
+            let active = self.active().map(|d| d.uid);
+            let d = self.docs.remove(from);
+            self.docs.insert(to, d);
+            if let Some(uid) = active {
+                self.active = self.docs.iter().position(|d| d.uid == uid);
+            }
+        }
+        true
+    }
     /// The point type Edit Points remembers names a shape of the active document, and another
     /// document can have a shape with the same id: a change of active document forgets it.
     fn forget_vertex_kind_unless(&mut self, was: Option<u64>) {

@@ -94,6 +94,10 @@ pub struct UiState {
     pub comment_focus: Option<(usize, usize)>,
     /// Quick Access Toolbar buttons, left to right.
     pub qat: Vec<qat::QatItem>,
+    /// Preferences ▸ Open presentations in tabs: the open presentations get a tab row, each keeps
+    /// its own zoom, view and scroll, and a file opened from the system goes to the running
+    /// window. Off by default: one presentation shows at a time and every launch is its own window.
+    pub tabs: bool,
 }
 
 impl Default for UiState {
@@ -127,6 +131,7 @@ impl Default for UiState {
             grayscale: false,
             comment_focus: None,
             qat: qat::defaults(),
+            tabs: false,
         }
     }
 }

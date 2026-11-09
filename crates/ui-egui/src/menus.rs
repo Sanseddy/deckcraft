@@ -53,6 +53,11 @@ pub fn ui_shortcut(app: &mut SlideApp, key: egui::Key, m: Mods) -> bool {
             app.close_presentation();
             return true;
         }
+        // Tabs on: Ctrl+Tab and Ctrl+Shift+Tab cycle the tabs. Off, Ctrl+Tab stays the slide's.
+        (Tab, true, back, false) if app.ui.tabs && app.session.active().is_some() => {
+            app.cycle_tab(back);
+            return true;
+        }
         (O, true, false, false) => "app.openDialog",
         (V, true, false, true) if app.session.active().is_some() => {
             app.dialog = Some(crate::dialogs::Dialog::new("pasteSpecial"));

@@ -1365,6 +1365,11 @@ fn dlg_preferences(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bool {
         }
         d.fields.remove("uiScale");
     }
+    // Off by default; applies at once, and to files opened from the system from then on.
+    let mut tabs = app.ui.tabs;
+    if ui.checkbox(&mut tabs, "Open presentations in tabs").changed() {
+        let _ = app.run("app.tabs", json!({"on": tabs}));
+    }
     // PowerPoint takes the unit from the system's measurement setting; DeckCraft asks here.
     ui.horizontal(|ui| {
         ui.label("Measurement units:");

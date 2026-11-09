@@ -25,6 +25,7 @@ mod graphics;
 mod logging;
 #[cfg(not(target_arch = "wasm32"))]
 mod pasteboard;
+mod single_instance;
 
 use deckcraft_engine::Session;
 use deckcraft_ui_egui::{Services, SlideApp};
@@ -238,6 +239,23 @@ fn main() -> eframe::Result {
             }
         }
     }
+    // Preferences ▸ Open presentations in tabs: the first DeckCraft takes files from later launches;
+    // a later launch with files gives them to it when its tabs are on, and leaves. Otherwise (tabs
+    // off, nothing running, an error) this launch opens its own window as before.
+    let primary = match (std::env::var_os("DECKCRAFT_NO_PREFS").is_none()).then(config_dir).flatten() {
+        Some(dir) => match single_instance::claim(&dir) {
+            single_instance::Claim::Primary(p) => Some(p),
+            single_instance::Claim::Taken if !files.is_empty() && !sample && !show && control_port.is_none() => {
+                if single_instance::hand_over(&dir, &files) {
+                    log::info!("opened {} file(s) in the running window", files.len());
+                    return Ok(());
+                }
+                None
+            }
+            single_instance::Claim::Taken | single_instance::Claim::Unavailable => None,
+        },
+        None => None,
+    };
     let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("DeckCraft")
@@ -297,6 +315,13 @@ fn main() -> eframe::Result {
                 app.services.displays = Some(Box::new(move || display_count(&window)));
             }
             load_prefs(&mut app);
+            if let Some(primary) = primary {
+                let enabled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(app.ui.tabs));
+                let (tx, rx) = std::sync::mpsc::channel();
+                let ctx = cc.egui_ctx.clone();
+                primary.serve(enabled.clone(), tx, move || ctx.request_repaint());
+                app = app.with_handoff(deckcraft_ui_egui::Handoff { enabled, files: rx });
+            }
             app.enable_update_checks();
             // AutoRecover: reopen what a previous run left unsaved, then keep it current.
             if std::env::var_os("DECKCRAFT_NO_RECOVERY").is_none() {

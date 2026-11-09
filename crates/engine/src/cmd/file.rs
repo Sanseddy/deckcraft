@@ -73,6 +73,15 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!(noundo "file.recovery.discard", "Discard Recovered Presentations", [], None, "{uid?: one entry (else all)}", always, recovery_discard),
         cmd!(noundo "file.revert", "Revert", [], None, "{}", has_doc, revert),
         cmd!(noundo "window.next", "Next Window", ["Window"], Some("Cmd+`"), "{index?}", has_doc, next_window),
+        cmd!(
+            noundo "window.move",
+            "Move Window",
+            [],
+            None,
+            "{from: index, to: index} → {active: index}: reorder the open presentations (the window's tabs); the active one stays active",
+            has_doc,
+            move_window
+        ),
     ]
 }
 
@@ -735,6 +744,16 @@ fn next_window(s: &mut Session, p: &Value) -> Result<Value> {
     ok()
 }
 
+fn move_window(s: &mut Session, p: &Value) -> Result<Value> {
+    let n = s.documents().len();
+    let from = opt_usize_param(p, "from", "window.move")?.ok_or_else(|| bad("window.move", "missing `from`"))?;
+    let to = opt_usize_param(p, "to", "window.move")?.ok_or_else(|| bad("window.move", "missing `to`"))?;
+    if !s.move_document(from, to) {
+        return Err(bad("window.move", format!("{n} presentation{} open; `from` and `to` must be below {n}", if n == 1 { " is" } else { "s are" })));
+    }
+    Ok(json!({"active": s.active_index()}))
+}
+
 fn recovery_dir(s: &Session) -> Result<std::path::PathBuf> {
     s.recovery_dir.clone().ok_or_else(|| EngineError::Other("no recovery folder is set".into()))
 }
@@ -780,6 +799,53 @@ fn recovery_discard(s: &mut Session, p: &Value) -> Result<Value> {
 #[cfg(test)]
 #[path = "color_at_tests.rs"]
 mod color_at_tests;
+
+#[cfg(test)]
+mod window_move_tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used)]
+
+    use crate::Session;
+    use serde_json::json;
+
+    fn uids(s: &Session) -> Vec<u64> {
+        s.documents().iter().map(|d| d.uid).collect()
+    }
+
+    /// Dragging a tab reorders the presentations; the one being edited stays the active one.
+    #[test]
+    fn moving_a_window_keeps_the_active_presentation() {
+        let mut s = Session::new();
+        for _ in 0..3 {
+            s.execute("file.new", &json!({})).unwrap();
+        }
+        let before = uids(&s);
+        s.set_active(0);
+        let r = s.execute("window.move", &json!({"from": 0, "to": 2})).unwrap();
+        assert_eq!(uids(&s), vec![before[1], before[2], before[0]]);
+        assert_eq!(r["active"], json!(2), "the moved presentation is still the active one");
+        assert_eq!(s.active().unwrap().uid, before[0]);
+        s.execute("window.move", &json!({"from": 0, "to": 1})).unwrap();
+        assert_eq!(uids(&s), vec![before[2], before[1], before[0]]);
+        assert_eq!(s.active().unwrap().uid, before[0], "moving other tabs leaves the active one");
+        s.execute("window.move", &json!({"from": 1, "to": 1})).unwrap();
+        assert_eq!(uids(&s), vec![before[2], before[1], before[0]]);
+    }
+
+    /// Indices come from the control channel and MCP: out of range or malformed is an error, never
+    /// a panic, and the order stays as it was.
+    #[test]
+    fn moving_a_window_rejects_hostile_indices() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({})).unwrap();
+        s.execute("file.new", &json!({})).unwrap();
+        let before = uids(&s);
+        for p in [json!({"from": 2, "to": 0}), json!({"from": 0, "to": 99}), json!({"from": -1, "to": 0}), json!({"from": 0}), json!({"from": "a", "to": 1})] {
+            assert!(s.execute("window.move", &p).is_err(), "{p}");
+        }
+        assert_eq!(uids(&s), before);
+        assert!(!s.move_document(usize::MAX, 0));
+    }
+}
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {

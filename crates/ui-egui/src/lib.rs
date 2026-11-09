@@ -32,6 +32,7 @@ pub mod settings;
 pub mod show;
 pub mod sorter;
 pub mod status;
+pub mod tabs;
 pub mod textures;
 pub mod theme;
 pub mod toast;
@@ -75,6 +76,7 @@ pub use ribbon::qat;
 pub use services::{DownloadFn, HostSaveFn, Inbox, InboxEvent, InboxFile, OpenAsyncFn, PickFn, ReadFn, Services, WriteFn};
 use state::{FilePlace, FilePurpose, ImeDescriptorKey, ImeDestination, ImeTerminalStamp};
 pub use state::{RECENT_MAX, UiState, ViewMode, ZOOM_RANGE};
+pub use tabs::Handoff;
 
 /// The presentation (and place in it) captured when the request started.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -131,6 +133,8 @@ pub const UI_COMMANDS: &[(&str, &str, Option<&str>, &str)] = &[
     ("app.home", "Home", None, "{on?}"),
     ("app.backstage", "File", Some("Alt+F"), "{page?: home|new|open|info|saveAs|print|export|about, on?: bool}"),
     ("app.closePresentation", "Close", Some("Cmd+W"), "{}"),
+    ("app.tabs", "Open Presentations in Tabs", None, "{on?: bool} → {on, tabs: [{title, path, dirty, active}]}"),
+    ("app.closeTab", "Close Tab", None, "{index?: tab (else the active one)}: asks first when it has unsaved changes"),
     (
         "app.print",
         "Print",
@@ -322,6 +326,8 @@ pub struct SlideApp {
     pub doc_window: Option<doc_window::DocWindow>,
     /// Slide Sorter: folded sections, inline rename, dragging a whole section.
     pub sorter: sorter::State,
+    /// Preferences ▸ Open presentations in tabs: the tab row and each presentation's view.
+    pub doc_tabs: tabs::Tabs,
     /// The slide thumbnail pane was the last thing clicked, so ⌘A selects slides, not shapes.
     pub(crate) slides_focused: bool,
     /// A V key press or a Paste event arrived since the last V release (see `keyboard`).
@@ -476,6 +482,8 @@ mod reuse_picker_tests;
 mod slide_size_tests;
 #[cfg(test)]
 mod split_button_tests;
+#[cfg(test)]
+mod tabs_tests;
 #[cfg(test)]
 mod texture_limit_tests;
 #[cfg(test)]

@@ -1,6 +1,6 @@
 #[cfg(not(target_arch = "wasm32"))]
 use super::updates_ui;
-use super::{SlideApp, UI_COMMANDS, Value, ViewMode, backstage, dialogs, doc_window, json, media, qat, theme};
+use super::{SlideApp, UI_COMMANDS, Value, ViewMode, backstage, dialogs, doc_window, json, media, qat, tabs, theme};
 
 fn grid_options_touched(p: &Value) -> bool {
     ["spacing", "snap", "smartGuides", "gridlines", "guides"].iter().any(|k| p.get(*k).is_some())
@@ -219,6 +219,19 @@ impl SlideApp {
                 return Ok(json!({"page": page.id()}));
             }
             "app.closePresentation" => self.close_presentation(),
+            "app.tabs" => {
+                self.ui.tabs = self.flag(p, self.ui.tabs);
+                tabs::sync(self);
+                return Ok(tabs::describe(self));
+            }
+            "app.closeTab" => {
+                let n = self.session.documents().len();
+                let i = match p.get("index") {
+                    None | Some(Value::Null) => self.session.active_index().ok_or("no presentation is open")?,
+                    Some(v) => v.as_u64().and_then(|i| usize::try_from(i).ok()).filter(|i| *i < n).ok_or_else(|| format!("no tab {v}: {n} open"))?,
+                };
+                self.close_tab(i);
+            }
             "app.print" => {
                 if self.session.active().is_none() {
                     return Err("nothing to print: no presentation is open".into());
